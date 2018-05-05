@@ -127,35 +127,32 @@ class MapRecoloring {
     while (true) {
       int nc = 0;
       for (int i = 0; i < ns; ++i) {
-        {
-          int n = -1, nv = 0xff;
-          for (int j = i; j < ns; ++j) {
-            int t = 0;
-            for (int k = 0; k < cs; ++k) {
-              if (colorCount[nlist[j]][k] == 0) ++t;
-            }
-            if (nv > t) {
-              nv = t;
-              n = j;
+        int n, nv = 0xff, ci = 0;
+        for (int j = i; j < ns; ++j) {
+          int t = 0, ti = -1;
+          for (int k = 0; k < cs - 1; ++k) {
+            if (colorCount[nlist[j]][clist[k]] == 0) {
+              ++t;
+              if (ti == -1) ti = k;
             }
           }
-          swap(nlist[n], nlist[i]);
-        }
-        bool bad = true;
-        for (int j = 0; j < cs; ++j) {
-          if (state::set(nlist[i], clist[j])) {
-            bad = false;
-            if (nc < j + 1) nc = j + 1;
-            break;
+          if (t == 0) {
+            memset(colorCount, 0, sizeof(colorCount));
+            for (int k = 0; k < X; ++k) state::set(k, cur[k]);
+            nc = cs;
+            goto OUTER;
+          }
+          if (nv > t) {
+            nv = t;
+            n = j;
+            ci = ti;
           }
         }
-        if (bad) {
-          memset(colorCount, 0, sizeof(colorCount));
-          for (int k = 0; k < X; ++k) state::set(k, cur[k]);
-          nc = cs;
-          break;
-        }
+        swap(nlist[n], nlist[i]);
+        state::set(nlist[i], clist[ci]);
+        if (nc < ci + 1) nc = ci + 1;
       }
+    OUTER:
       if (timer.getElapsed() > TIME_LIMIT) break;
       memcpy(cur, result, sizeof(result));
       ns = 0;
