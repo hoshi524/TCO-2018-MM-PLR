@@ -127,6 +127,20 @@ class MapRecoloring {
     while (true) {
       int nc = 0;
       for (int i = 0; i < ns; ++i) {
+        {
+          int n = -1, nv = 0xff;
+          for (int j = i; j < ns; ++j) {
+            int t = 0;
+            for (int k = 0; k < cs; ++k) {
+              if (colorCount[nlist[j]][k] == 0) ++t;
+            }
+            if (nv > t) {
+              nv = t;
+              n = j;
+            }
+          }
+          swap(nlist[n], nlist[i]);
+        }
         bool bad = true;
         for (int j = 0; j < cs; ++j) {
           if (state::set(nlist[i], clist[j])) {
