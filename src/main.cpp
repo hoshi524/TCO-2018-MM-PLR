@@ -65,18 +65,58 @@ constexpr int MAX_R = MAX_S * MAX_S / 8;
 constexpr int MAX_N = 1 << 12;
 constexpr int MAX_C = 1 << 3;
 
-int H, W, X;
+int H, W, X, X_;
 int regions[MAX_S][MAX_S];
 int oldColors[MAX_S][MAX_S];
 int result[MAX_R];
 bool connect[MAX_N][MAX_N];
 int edge[MAX_N][1 << 6];
+int edge_[MAX_N][1 << 6];
 int colorBit[MAX_N];
+int nmap[MAX_N];
+int rmap[MAX_N];
+int nlist[MAX_N];
+
+void mapping(int c) {
+  static bool use[MAX_N];
+  memset(use, true, sizeof(use));
+  bool ok = true;
+  while (ok) {
+    ok = false;
+    X_ = 0;
+    for (int i = 0; i < X; ++i) {
+      if (use[i]) {
+        nmap[i] = X_;
+        rmap[X_] = i;
+        ++X_;
+      } else {
+        nmap[i] = -1;
+      }
+    }
+    for (int i = 0; i < X_; ++i) {
+      int mi = rmap[i];
+      edge_[i][0] = 0;
+      for (int j = 1; j <= edge[mi][0]; ++j) {
+        int mj = edge[mi][j];
+        if (use[mj]) {
+          edge_[i][++edge_[i][0]] = nmap[mj];
+        }
+      }
+      if (edge_[i][0] < c) {
+        use[mi] = false;
+        ok = true;
+      }
+    }
+  }
+  for (int i = 0; i < X_; ++i) {
+    nlist[i] = i;
+  }
+}
 
 namespace state {
 void set(int i, int c) {
   result[i] = c;
-  for (int j = 1; j <= edge[i][0]; ++j) colorBit[edge[i][j]] &= ~(1 << c);
+  for (int j = 1; j <= edge_[i][0]; ++j) colorBit[edge_[i][j]] &= ~(1 << c);
 }
 }  // namespace state
 
@@ -108,21 +148,20 @@ class MapRecoloring {
         if (j > 0) add(regions[i][j], regions[i][j - 1]);
       }
     }
-    int cs = MAX_C + 1;
-    int nlist[MAX_N];
-    int cur[MAX_R];
     for (int i = 0; i < X; ++i) {
-      nlist[i] = i;
       sort(edge[i] + 1, edge[i] + edge[i][0] + 1);
     }
+    int cs = MAX_C + 1;
+    mapping(cs - 1);
+    int cur[MAX_R];
     mt19937 engine(get_random());
     do {
-      shuffle(nlist, nlist + X, engine);
+      shuffle(nlist, nlist + X_, engine);
       int nc = cs - 1;
-      for (int i = 0; i < X; ++i) colorBit[i] = (1 << nc) - 1;
-      for (int i = 0; i < X; ++i) {
+      for (int i = 0; i < X_; ++i) colorBit[i] = (1 << nc) - 1;
+      for (int i = 0; i < X_; ++i) {
         int n, nv = 0xff;
-        for (int j = i; j < X; ++j) {
+        for (int j = i; j < X_; ++j) {
           int t = bitset<MAX_C>(colorBit[nlist[j]]).count();
           if (t == 0) goto OUTER;
           if (nv > t) {
@@ -138,10 +177,44 @@ class MapRecoloring {
           }
         }
       }
-      memcpy(cur, result, sizeof(result));
+      memset(cur, -1, sizeof(cur));
+      for (int i = 0; i < X_; ++i) {
+        cur[rmap[i]] = result[i];
+      }
       cs = nc;
+      mapping(cs - 1);
     OUTER:;
     } while (timer.getElapsed() < TIME_LIMIT);
+    {
+      int e = 0;
+      for (int i = 0; i < X; ++i) {
+        if (cur[i] == -1) ++e;
+      }
+      while (e--) {
+        int ti = -1, bc = 0xff, b = -1;
+        for (int i = 0; i < X; ++i) {
+          if (cur[i] == -1) {
+            int bit = (1 << MAX_C) - 1;
+            for (int j = 1; j <= edge[i][0]; ++j) {
+              int c = cur[edge[i][j]];
+              if (c != -1) bit &= ~(1 << c);
+            }
+            int tbc = bitset<MAX_C>(bit).count();
+            if (bc > tbc) {
+              bc = tbc;
+              ti = i;
+              b = bit;
+            }
+          }
+        }
+        for (int c = 0; c < MAX_C; ++c) {
+          if (b & (1 << c)) {
+            cur[ti] = c;
+            break;
+          }
+        }
+      }
+    }
     vector<int> ret(X);
     for (int i = 0; i < X; ++i) ret[i] = cur[i];
     return ret;
