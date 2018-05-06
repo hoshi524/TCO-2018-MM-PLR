@@ -40,7 +40,7 @@ for i in range(num_worker_threads):
     t.start()
     threads.append(t)
 
-for seed in range(1, 10):
+for seed in range(1, 100):
     q.put(seed)
 
 q.join()

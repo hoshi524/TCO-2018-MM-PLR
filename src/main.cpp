@@ -63,7 +63,7 @@ constexpr float TIME_LIMIT = 1.5;
 constexpr int MAX_S = 1 << 8;
 constexpr int MAX_R = MAX_S * MAX_S / 8;
 constexpr int MAX_N = 1 << 12;
-constexpr int MAX_C = 1 << 4;
+constexpr int MAX_C = 1 << 3;
 
 int H, W, X;
 int regions[MAX_S][MAX_S];
@@ -71,21 +71,12 @@ int oldColors[MAX_S][MAX_S];
 int result[MAX_R];
 bool connect[MAX_N][MAX_N];
 int edge[MAX_N][1 << 6];
-int colorCount[MAX_N][MAX_C];
+int colorBit[MAX_N];
 
 namespace state {
-bool set(int i, int c) {
-  if (colorCount[i][c]) return false;
+void set(int i, int c) {
   result[i] = c;
-  for (int j = 1; j <= edge[i][0]; ++j) colorCount[edge[i][j]][c]++;
-  return true;
-}
-bool reset(int i) {
-  if (result[i] == -1) return false;
-  int c = result[i];
-  for (int j = 1; j <= edge[i][0]; ++j) colorCount[edge[i][j]][c]--;
-  result[i] = -1;
-  return true;
+  for (int j = 1; j <= edge[i][0]; ++j) colorBit[edge[i][j]] &= ~(1 << c);
 }
 }  // namespace state
 
@@ -117,62 +108,39 @@ class MapRecoloring {
         if (j > 0) add(regions[i][j], regions[i][j - 1]);
       }
     }
-    memset(colorCount, 0, sizeof(colorCount));
-    int ns = X, cs = MAX_C;
+    int cs = MAX_C + 1;
     int nlist[MAX_N];
-    int clist[MAX_C];
     int cur[MAX_R];
-    for (int i = 0; i < ns; ++i) nlist[i] = i;
-    for (int i = 0; i < cs; ++i) clist[i] = i;
-    while (true) {
-      int nc = 0;
-      for (int i = 0; i < ns; ++i) {
-        int n, nv = 0xff, ci = 0;
-        for (int j = i; j < ns; ++j) {
-          int t = 0, ti = -1;
-          for (int k = 0; k < cs - 1; ++k) {
-            if (colorCount[nlist[j]][clist[k]] == 0) {
-              ++t;
-              if (ti == -1) ti = k;
-            }
-          }
-          if (t == 0) {
-            memset(colorCount, 0, sizeof(colorCount));
-            for (int k = 0; k < X; ++k) state::set(k, cur[k]);
-            nc = cs;
-            goto OUTER;
-          }
+    for (int i = 0; i < X; ++i) nlist[i] = i;
+    mt19937 engine(get_random());
+    do {
+      shuffle(nlist, nlist + X, engine);
+      int nc = cs - 1;
+      for (int i = 0; i < X; ++i) colorBit[i] = (1 << nc) - 1;
+      for (int i = 0; i < X; ++i) {
+        int n, nv = 0xff;
+        for (int j = i; j < X; ++j) {
+          int t = bitset<MAX_C>(colorBit[nlist[j]]).count();
+          if (t == 0) goto OUTER;
           if (nv > t) {
             nv = t;
             n = j;
-            ci = ti;
           }
         }
         swap(nlist[n], nlist[i]);
-        state::set(nlist[i], clist[ci]);
-        if (nc < ci + 1) nc = ci + 1;
-      }
-    OUTER:
-      if (timer.getElapsed() > TIME_LIMIT) break;
-      memcpy(cur, result, sizeof(result));
-      ns = 0;
-      cs = nc;
-      int d = get_random() % cs;
-      for (int i = 0; i < X; ++i) {
-        if (clist[d] == result[i]) {
-          if (state::reset(i)) nlist[ns++] = i;
-          for (int j = 1; j <= edge[i][0]; ++j) {
-            if (state::reset(edge[i][j])) nlist[ns++] = edge[i][j];
+        for (int c = 0; c < nc; ++c) {
+          if (colorBit[nlist[i]] & (1 << c)) {
+            state::set(nlist[i], c);
+            break;
           }
         }
       }
-      swap(clist[d], clist[cs - 1]);
-      static mt19937 engine(get_random());
-      shuffle(nlist, nlist + ns, engine);
-      shuffle(clist, clist + cs - 1, engine);
-    }
+      memcpy(cur, result, sizeof(result));
+      cs = nc;
+    OUTER:;
+    } while (timer.getElapsed() < TIME_LIMIT);
     vector<int> ret(X);
-    for (int i = 0; i < X; ++i) ret[i] = result[i];
+    for (int i = 0; i < X; ++i) ret[i] = cur[i];
     return ret;
   }
 };
