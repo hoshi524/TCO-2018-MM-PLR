@@ -111,7 +111,10 @@ class MapRecoloring {
     int cs = MAX_C + 1;
     int nlist[MAX_N];
     int cur[MAX_R];
-    for (int i = 0; i < X; ++i) nlist[i] = i;
+    for (int i = 0; i < X; ++i) {
+      nlist[i] = i;
+      sort(edge[i] + 1, edge[i] + edge[i][0] + 1);
+    }
     mt19937 engine(get_random());
     do {
       shuffle(nlist, nlist + X, engine);

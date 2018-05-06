@@ -197,9 +197,9 @@ public class MapRecoloringVis {
         if (debug)
             System.out.println(test);
 
-        if (vis) {
-            SZX = W * SZ + 1;
-            SZY = H * SZ + 1;
+        SZX = W * SZ + 1;
+        SZY = H * SZ + 1;
+        if (false) {
             // draw the starting data
             draw(false);
         }
