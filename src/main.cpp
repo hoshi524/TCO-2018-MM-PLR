@@ -86,7 +86,7 @@ void set(int r, int c) {
 
 class MapRecoloring {
  public:
-  vector<int> recolor(int H_, vector<int> regions_, vector<int> oldColors_) {
+  vector<int> recolor(int H_, vector<int>& regions_, vector<int>& oldColors_) {
     H = H_;
     W = regions_.size() / H;
     X = 0;
