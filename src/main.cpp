@@ -130,7 +130,7 @@ class MapRecoloring {
     constexpr int COLOR = 100000;
     int value = INT_MAX;
     for (int i = 0; i < X; ++i) nlist[i] = i;
-    while (timer.getElapsed() < TIME_LIMIT) {
+    while (value == INT_MAX or timer.getElapsed() < TIME_LIMIT) {
       [&]() {
         int nc = 6 + (value < 7 * COLOR ? 0 : (get_random() & 1));
         memset(colorBit, (1 << nc) - 1, sizeof(colorBit));
@@ -175,7 +175,8 @@ class MapRecoloring {
 // -------8<------- end of solution submitted to the website -------8<-------
 template <class T>
 void getVector(vector<T>& v) {
-  for (int i = 0; i < v.size(); ++i) cin >> v[i];
+  int s = v.size();
+  for (int i = 0; i < s; ++i) cin >> v[i];
 }
 
 int main() {

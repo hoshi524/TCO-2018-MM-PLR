@@ -3,7 +3,7 @@ import json
 import threading
 import queue
 
-subprocess.call('g++ --std=c++0x -W -Wall -Wno-sign-compare -O2 -s -pipe -mmmx -msse -msse2 -msse3 -o out/main.out src/main.cpp', shell=True)
+subprocess.call('g++ --std=c++0x -W -Wall -O2 -s -pipe -mmmx -msse -msse2 -msse3 -o out/main.out src/main.cpp', shell=True)
 subprocess.call('javac -d out src/MapRecoloringVis.java', shell=True)
 
 def solve(seed):
