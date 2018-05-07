@@ -63,25 +63,43 @@ constexpr float TIME_LIMIT = 2;
 constexpr int MAX_S = 1 << 8;
 constexpr int MAX_N = 1 << 12;
 constexpr int MAX_C = 1 << 3;
+constexpr int WIDTH = 1 << 11;
+constexpr int NE = 1 << 20;
 
 int H, W, X;
-uint8_t regionsColor[MAX_N][MAX_C];
-uint8_t oldColors[MAX_S][MAX_S];
-uint8_t ans[MAX_N];
-uint8_t color[MAX_N];
-uint8_t colorOrder[MAX_N][MAX_C];
-uint8_t colorBit[MAX_N];
-uint16_t regions[MAX_S][MAX_S];
-uint16_t edge[MAX_N][1 << 6];
-uint16_t nlist[MAX_N];
-mt19937 engine(get_random());
+int regions[MAX_S][MAX_S];
+int regionsColor[MAX_N][MAX_C];
+int oldColors[MAX_S][MAX_S];
+int edge[MAX_N][1 << 6];
+int hash_[MAX_N][MAX_C];
 
-namespace state {
-void set(int r, int c) {
-  color[r] = c;
-  for (int j = 1; j <= edge[r][0]; ++j) colorBit[edge[r][j]] &= ~(1 << c);
-}
-}  // namespace state
+class State {
+ public:
+  int v;
+  int color[MAX_N];
+  int colorBit[MAX_N];
+
+  void set(int r, int c) {
+    v += regionsColor[r][c];
+    color[r] = c;
+    for (int j = 1; j <= edge[r][0]; ++j) colorBit[edge[r][j]] &= ~(1 << c);
+  }
+
+  int hash() {
+    int x = 0;
+    for (int i = 0; i < X; ++i) {
+      if (color[i] != -1) x ^= hash_[i][color[i]];
+    }
+    return x;
+  }
+};
+struct Ne {
+  State* s;
+  int v, r, c;
+};
+
+State state[2][WIDTH];
+Ne ne[NE];
 
 class MapRecoloring {
  public:
@@ -94,6 +112,11 @@ class MapRecoloring {
         regions[i][j] = regions_[i * W + j];
         oldColors[i][j] = oldColors_[i * W + j];
         if (X < regions[i][j] + 1) X = regions[i][j] + 1;
+      }
+    }
+    for (int i = 0; i < X; ++i) {
+      for (int j = 0; j < MAX_C; ++j) {
+        hash_[i][j] = get_random();
       }
     }
     memset(regionsColor, 0, sizeof(regionsColor));
@@ -121,53 +144,72 @@ class MapRecoloring {
     }
     for (int i = 0; i < X; ++i) {
       sort(edge[i] + 1, edge[i] + edge[i][0] + 1);
-      for (int j = 0; j < MAX_C; ++j) colorOrder[i][j] = j;
-      sort(colorOrder[i], colorOrder[i] + MAX_C, [&](int a, int b) {
-        if (regionsColor[i][a] == regionsColor[i][b]) return a > b;
-        return regionsColor[i][a] < regionsColor[i][b];
-      });
     }
-    constexpr int COLOR = 100000;
-    int value = INT_MAX;
-    for (int i = 0; i < X; ++i) nlist[i] = i;
-    while (timer.getElapsed() < TIME_LIMIT) {
-      [&]() {
-        int nc = 6 + (value < 7 * COLOR ? 0 : (get_random() & 1));
-        memset(colorBit, (1 << nc) - 1, sizeof(colorBit));
-        shuffle(nlist, nlist + X, engine);
+    {
+      int C = 7, cs = 1;
+      {
+        State& s = state[0][0];
+        s.v = 0;
         for (int i = 0; i < X; ++i) {
-          int n, nv = 0xff;
-          for (int j = i; j < X; ++j) {
-            int b = colorBit[nlist[j]];
-            if (b == 0) return;
-            int t = bitset<MAX_C>(b).count();
-            if (nv > t) {
-              nv = t;
-              n = j;
+          s.color[i] = -1;
+          s.colorBit[i] = (1 << C) - 1;
+        }
+      }
+      for (int i = 0; i < X; ++i) {
+        int ns = 0;
+        for (int j = 0; j < cs and ns < NE; ++j) {
+          [&]() {
+            State& s = state[i & 1][j];
+            int mc = C;
+            for (int i = 0; i < X; ++i) {
+              if (s.color[i] != -1) continue;
+              int b = s.colorBit[i];
+              int t = bitset<MAX_C>(b).count();
+              if (t == 0) return;
+              if (mc > t) mc = t;
             }
-          }
-          swap(nlist[n], nlist[i]);
-          int r = nlist[i];
-          for (int j = 0; j < MAX_C; ++j) {
-            int c = colorOrder[r][j];
-            if (colorBit[r] & (1 << c)) {
-              state::set(r, c);
-              break;
+            for (int i = 0; i < X; ++i) {
+              if (s.color[i] != -1) continue;
+              int b = s.colorBit[i];
+              int t = bitset<MAX_C>(b).count();
+              if (t > mc) continue;
+              for (int c = 0; c < C; ++c) {
+                if (b & (1 << c)) {
+                  Ne& n = ne[ns];
+                  n.s = &s;
+                  n.v = get_random() & 0xfffffff;
+                  n.r = i;
+                  n.c = c;
+                  if (++ns == NE) return;
+                }
+              }
             }
+          }();
+        }
+        assert(ns > 0);
+        sort(ne, ne + ns, [](const Ne& a, const Ne& b) { return a.v < b.v; });
+        cs = 0;
+        static set<int> set;
+        set.clear();
+        for (int j = 0; j < ns and cs < WIDTH; ++j) {
+          Ne& n = ne[j];
+          State& s = state[(i + 1) & 1][cs];
+          memcpy(&s, n.s, sizeof(State));
+          s.set(n.r, n.c);
+          int hash = s.hash();
+          if (set.find(hash) == set.end()) {
+            set.insert(hash);
+            ++cs;
           }
         }
-        int v = nc * COLOR;
-        for (int i = 0; i < X; ++i) {
-          v += regionsColor[i][color[i]];
-        }
-        if (value > v) {
-          value = v;
-          memcpy(ans, color, sizeof(ans));
-        }
-      }();
+        cerr << i << " " << X << " " << cs << endl;
+      }
     }
+
     vector<int> ret(X);
-    for (int i = 0; i < X; ++i) ret[i] = ans[i];
+    for (int i = 0; i < X; ++i) {
+      ret[i] = state[X & 1][0].color[i];
+    }
     return ret;
   }
 };
