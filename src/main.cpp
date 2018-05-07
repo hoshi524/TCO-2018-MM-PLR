@@ -130,7 +130,7 @@ class MapRecoloring {
     constexpr int COLOR = 100000;
     int value = INT_MAX;
     for (int i = 0; i < X; ++i) nlist[i] = i;
-    while (value == INT_MAX or timer.getElapsed() < TIME_LIMIT) {
+    while (timer.getElapsed() < TIME_LIMIT or value == INT_MAX) {
       [&]() {
         int nc = 6 + (value < 7 * COLOR ? 0 : (get_random() & 1));
         memset(colorBit, (1 << nc) - 1, sizeof(colorBit));
