@@ -2,64 +2,21 @@
 #include <sys/time.h>
 using namespace std;
 
-class Timer {
- public:
-  void restart();
-  double getElapsed();
-
-  Timer();
-
- private:
-  static double rdtsc_per_sec_inv;
-
-  double getTimeOfDay();
-  unsigned long long int getCycle();
-
-  double start_time;
-  unsigned long long int start_clock;
-};
-double Timer::rdtsc_per_sec_inv = -1;
-
-inline double Timer::getElapsed() {
-  if (rdtsc_per_sec_inv != -1)
-    return (double)(getCycle() - start_clock) * rdtsc_per_sec_inv;
-
-  const double RDTSC_MEASUREMENT_INTERVAL = 0.1;
-  double res = getTimeOfDay() - start_time;
-  if (res <= RDTSC_MEASUREMENT_INTERVAL) return res;
-
-  rdtsc_per_sec_inv = 1.0 / (getCycle() - start_clock);
-  rdtsc_per_sec_inv *= getTimeOfDay() - start_time;
-  return getElapsed();
+constexpr double ticks_per_sec = 2800000000;
+constexpr double ticks_per_sec_inv = 1.0 / ticks_per_sec;
+inline double rdtsc() {
+  uint32_t lo, hi;
+  asm volatile("rdtsc" : "=a"(lo), "=d"(hi));
+  return (((uint64_t)hi << 32) | lo) * ticks_per_sec_inv;
 }
-
-inline void Timer::restart() {
-  start_time = getTimeOfDay();
-  start_clock = getCycle();
-}
-
-Timer::Timer() { restart(); }
-
-inline double Timer::getTimeOfDay() {
-  timeval tv;
-  gettimeofday(&tv, 0);
-  return tv.tv_sec + tv.tv_usec * 0.000001;
-}
-
-inline unsigned long long int Timer::getCycle() {
-  unsigned int low, high;
-  __asm__ volatile("rdtsc" : "=a"(low), "=d"(high));
-  return ((unsigned long long int)low) | ((unsigned long long int)high << 32);
-}
-
-Timer timer;
+double start = rdtsc();
 
 inline unsigned get_random() {
   static unsigned y = 2463534242;
   return y ^= (y ^= (y ^= y << 13) >> 17) << 5;
 }
 
-constexpr float TIME_LIMIT = 2;
+constexpr float TIME_LIMIT = 9;
 constexpr int MAX_S = 1 << 8;
 constexpr int MAX_N = 1 << 12;
 constexpr int MAX_C = 1 << 3;
@@ -176,7 +133,7 @@ class MapRecoloring {
     constexpr int COLOR = 100000;
     int value = INT_MAX;
     for (int i = 0; i < X; ++i) nlist[i] = i;
-    while (timer.getElapsed() < TIME_LIMIT or value == INT_MAX) {
+    while (rdtsc() - start < TIME_LIMIT or value == INT_MAX) {
       [&]() {
         int nc = 6 + (value < 7 * COLOR ? 0 : (get_random() & 1));
         memset(colorBit, (1 << nc) - 1, sizeof(colorBit));
