@@ -63,6 +63,7 @@ constexpr float TIME_LIMIT = 2;
 constexpr int MAX_S = 1 << 8;
 constexpr int MAX_N = 1 << 12;
 constexpr int MAX_C = 1 << 3;
+constexpr int MAX_E = 1 << 6;
 
 int H, W, X;
 uint8_t regionsColor[MAX_N][MAX_C];
@@ -72,14 +73,57 @@ uint8_t color[MAX_N];
 uint8_t colorOrder[MAX_N][MAX_C];
 uint8_t colorBit[MAX_N];
 uint16_t regions[MAX_S][MAX_S];
-uint16_t edge[MAX_N][1 << 6];
+uint16_t edge[MAX_N][MAX_E];
 uint16_t nlist[MAX_N];
 mt19937 engine(get_random());
 
 namespace state {
 void set(int r, int c) {
   color[r] = c;
-  for (int j = 1; j <= edge[r][0]; ++j) colorBit[edge[r][j]] &= ~(1 << c);
+  colorBit[r] = 0;
+  static uint16_t queue[MAX_N];
+  int qs = 0;
+  auto remove = [&](int r, int c) {
+    uint8_t& x = colorBit[r];
+    if (x & (1 << c)) {
+      x ^= 1 << c;
+      if (bitset<MAX_C>(x).count() == 2) queue[qs++] = r;
+    }
+  };
+  for (int i = 1; i <= edge[r][0]; ++i) remove(edge[r][i], c);
+  for (int i = 0; i < qs; ++i) {
+    int r0 = queue[i];
+    int b = colorBit[r0];
+    auto removes = [&](vector<int>& v) {
+      std::set<int> set;
+      int f = v[0];
+      for (int r : v) {
+        std::set<int> next;
+        for (int i = 1; i <= edge[r][0]; ++i) {
+          int s = edge[r][i];
+          if (colorBit[s] == 0) continue;
+          if (f != r and set.find(s) == set.end()) continue;
+          next.insert(s);
+        }
+        set = move(next);
+      }
+      for (int r : set) {
+        for (int c = 0; c < MAX_C; ++c) {
+          if (b & (1 << c)) remove(r, c);
+        }
+      }
+    };
+    int t = bitset<MAX_C>(b).count();
+    if (t == 2) {
+      for (int j = 1; j <= edge[r0][0]; ++j) {
+        int r1 = edge[r0][j];
+        if (b == colorBit[r1]) {
+          vector<int> v{r0, r1};
+          removes(v);
+        }
+      }
+    }
+  }
 }
 }  // namespace state
 
@@ -109,6 +153,8 @@ class MapRecoloring {
             connect[b][a] = true;
             edge[a][++edge[a][0]] = b;
             edge[b][++edge[b][0]] = a;
+            // assert(edge[a][0] < MAX_E);
+            // assert(edge[b][0] < MAX_E);
           };
           if (i > 0) add(regions[i][j], regions[i - 1][j]);
           if (j > 0) add(regions[i][j], regions[i][j - 1]);
