@@ -59,7 +59,7 @@ inline unsigned get_random() {
   return y ^= (y ^= (y ^= y << 13) >> 17) << 5;
 }
 
-constexpr float TIME_LIMIT = 1.5;
+constexpr float TIME_LIMIT = 1;
 constexpr int MAX_S = 1 << 8;
 constexpr int MAX_R = MAX_S * MAX_S / 8;
 constexpr int MAX_N = 1 << 12;
@@ -77,6 +77,7 @@ int colorBit[MAX_N];
 int nmap[MAX_N];
 int rmap[MAX_N];
 int nlist[MAX_N];
+int colorOrder[MAX_N][MAX_C];
 mt19937 engine(get_random());
 
 void mapping(int c) {
@@ -160,6 +161,13 @@ class MapRecoloring {
     }
     for (int i = 0; i < X; ++i) {
       sort(edge[i] + 1, edge[i] + edge[i][0] + 1);
+      for (int j = 0; j < MAX_C; ++j) {
+        colorOrder[i][j] = j;
+      }
+      sort(colorOrder[i], colorOrder[i] + MAX_C, [&](int a, int b) {
+        if (regionsColor[i][a] == regionsColor[i][b]) return a > b;
+        return regionsColor[i][a] < regionsColor[i][b];
+      });
     }
     int cs = MAX_C;
     int cur[MAX_R];
@@ -181,7 +189,8 @@ class MapRecoloring {
             }
           }
           swap(nlist[n], nlist[i]);
-          for (int c = 0; c < nc; ++c) {
+          for (int j = 0; j < MAX_C; ++j) {
+            int c = colorOrder[rmap[nlist[i]]][j];
             if (colorBit[nlist[i]] & (1 << c)) {
               state::set(nlist[i], c);
               break;
@@ -216,7 +225,8 @@ class MapRecoloring {
               }
             }
             swap(nlist[i], nlist[ti]);
-            for (int c = 0; c < nc; ++c) {
+            for (int j = 0; j < MAX_C; ++j) {
+              int c = colorOrder[nlist[i]][j];
               if (b & (1 << c)) {
                 cur[nlist[i]] = c;
                 break;
