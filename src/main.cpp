@@ -9,7 +9,6 @@ inline double rdtsc() {
   asm volatile("rdtsc" : "=a"(lo), "=d"(hi));
   return (((uint64_t)hi << 32) | lo) * ticks_per_sec_inv;
 }
-double start = rdtsc();
 
 inline unsigned get_random() {
   static unsigned y = 2463534242;
@@ -86,7 +85,9 @@ void set(int r, int c) {
 
 class MapRecoloring {
  public:
-  vector<int> recolor(int H_, vector<int>& regions_, vector<int>& oldColors_) {
+  vector<int> recolor(int H_, const vector<int>& regions_,
+                      const vector<int>& oldColors_) {
+    double start = rdtsc();
     H = H_;
     W = regions_.size() / H;
     X = 0;
