@@ -15,7 +15,7 @@ inline unsigned get_random() {
   return y ^= (y ^= (y ^= y << 13) >> 17) << 5;
 }
 
-constexpr float TIME_LIMIT = 9;
+constexpr float TIME_LIMIT = 1;
 constexpr int MAX_S = 1 << 8;
 constexpr int MAX_N = 1 << 12;
 constexpr int MAX_C = 1 << 3;

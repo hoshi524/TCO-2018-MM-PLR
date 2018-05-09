@@ -287,7 +287,7 @@ public class MapRecoloringVis {
             addFatalError("Number of colors used: " + distinct.size());
             addFatalError("Number of pixels recolored: " + recolor + " / " + (H * W));
         }
-        return 4000 * distinct.size() + recolor;
+        return 100000 * distinct.size() + recolor;
       }
       catch (Exception e) { 
         addFatalError("An exception occurred while trying to get your program's results.");
